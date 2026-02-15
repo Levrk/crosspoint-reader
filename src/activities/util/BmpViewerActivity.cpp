@@ -8,11 +8,9 @@
 
 BmpViewerActivity::BmpViewerActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                      std::string path, 
-                                     std::function<void()> onGoHome,
                                      std::function<void()> onGoBack)
     : Activity("BmpViewer", renderer, mappedInput),
       filePath(std::move(path)),
-      onGoHome(std::move(onGoHome)),
       onGoBack(std::move(onGoBack)) {}
 
 void BmpViewerActivity::onEnter() {
@@ -56,15 +54,7 @@ void BmpViewerActivity::onExit() {
 
 void BmpViewerActivity::loop() {
   if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-    uint32_t heldTime = mappedInput.getHeldTime();
-    
-    if (heldTime >= goHomeMs) {
-      // LONG PRESS -> GO HOME
-      if (onGoHome) onGoHome();
-    } else {
-      // SHORT PRESS -> GO BACK (to Library)
-      if (onGoBack) onGoBack();
-    }
+    if (onGoBack) onGoBack();
     return;
   }
 }

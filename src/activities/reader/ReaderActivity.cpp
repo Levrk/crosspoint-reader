@@ -92,8 +92,9 @@ void ReaderActivity::onGoToEpubReader(std::unique_ptr<Epub> epub) {
 
 void ReaderActivity::onGoToBmpViewer(const std::string& path) {
   exitActivity();
-
-  enterNewActivity(new BmpViewerActivity(renderer, mappedInput, path, onGoHome, [this] { onGoBack(); }));
+  enterNewActivity(new BmpViewerActivity(renderer, mappedInput, path, [this, path] { 
+    goToLibrary(path); 
+  }));
 }
 
 void ReaderActivity::onGoToXtcReader(std::unique_ptr<Xtc> xtc) {
