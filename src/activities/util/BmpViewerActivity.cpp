@@ -1,17 +1,15 @@
 #include "BmpViewerActivity.h"
 
 #include <Bitmap.h>
-#include <HalStorage.h>
 #include <GfxRenderer.h>
+#include <HalStorage.h>
+
 #include "components/UITheme.h"
 #include "fontIds.h"
 
-BmpViewerActivity::BmpViewerActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                     std::string path, 
+BmpViewerActivity::BmpViewerActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::string path,
                                      std::function<void()> onGoBack)
-    : Activity("BmpViewer", renderer, mappedInput),
-      filePath(std::move(path)),
-      onGoBack(std::move(onGoBack)) {}
+    : Activity("BmpViewer", renderer, mappedInput), filePath(std::move(path)), onGoBack(std::move(onGoBack)) {}
 
 void BmpViewerActivity::onEnter() {
   Activity::onEnter();
@@ -19,13 +17,12 @@ void BmpViewerActivity::onEnter() {
 
   FsFile file;
   if (Storage.openFileForRead("BMP", filePath, file)) {
-    
     Bitmap bmp(file, true);
 
     if (bmp.parseHeaders() == BmpReaderError::Ok) {
       int32_t bmpW = bmp.getWidth();
       int32_t bmpH = bmp.getHeight();
-      
+
       // Calculate centering
       int32_t xOffset = (renderer.getScreenWidth() - bmpW) / 2;
       int32_t yOffset = (renderer.getScreenHeight() - bmpH) / 2;
