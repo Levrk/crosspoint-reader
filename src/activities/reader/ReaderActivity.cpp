@@ -11,6 +11,7 @@
 #include "XtcReaderActivity.h"
 #include "activities/util/FullScreenMessageActivity.h"
 #include "util/StringUtils.h"
+#include "activities/util/BmpViewerActivity.h"
 
 std::string ReaderActivity::extractFolderPath(const std::string& filePath) {
   const auto lastSlash = filePath.find_last_of('/');
