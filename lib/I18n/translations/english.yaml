@@ -3,7 +3,7 @@ _language_code: "ENGLISH"
 _order: "0"
 
 STR_CROSSPOINT: "CrossPoint"
-STR_BOOTING: "BOOTING"
+STR_BOOTING: "Hello Lev"
 STR_SLEEPING: "SLEEPING"
 STR_ENTERING_SLEEP: "Going to sleep"
 STR_BROWSE_FILES: "Browse Files"
