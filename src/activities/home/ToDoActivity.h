@@ -9,10 +9,21 @@
 
 class ToDoActivity final : public Activity {
 private:
-    std::vector<std::string> tasks;
+    struct TaskItem {
+    std::string text;
+    bool isMajor = false;    // Starts with '>'
+    bool isSubTask = false;  // Starts with tab/spaces
+    bool isExpanded = false; // Only for Major tasks
+    bool isChecked = false;  // [x] or {x}};
+    };
+    std::vector<TaskItem> allTasks; // The full list from file
+    std::vector<int> visibleIndices; // Indices of tasks currently shown
+
     int selectorIndex = 0;
     bool updateRequired = false;
     const std::function<void()> onBack;
+    bool isDirty = false;
+    uint32_t lastChangeTime = 0;
     
     // Rendering task members (matching MyLibrary)
     TaskHandle_t displayTaskHandle = nullptr;
@@ -26,8 +37,9 @@ private:
     void saveTasks();
     void toggleTask(int index);
     void render() const; // Note the 'const' to match GUI calls
+    void rebuildVisibleTasks();   
 
-public:
+    public:
     ToDoActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::function<void()> onBack);
     void onEnter() override;
     void onExit() override;
