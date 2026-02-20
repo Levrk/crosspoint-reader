@@ -131,7 +131,9 @@ void ToDoActivity::loop() {
     }
 }
 
-void ToDoActivity::render() const {
+void ToDoActivity::renderCustom(bool asleep) const {
+    {
+    Activity::RenderLock lock(const_cast<ToDoActivity&>(*this));
     renderer.clearScreen();
     auto metrics = UITheme::getInstance().getMetrics();
     const auto pageWidth = renderer.getScreenWidth();
@@ -152,8 +154,14 @@ void ToDoActivity::render() const {
                 return allTasks[visibleIndices[index]].text; 
             }, nullptr, nullptr, nullptr);
     }
-
-    const auto labels = mappedInput.mapLabels("Back", "Toggle", "Up", "Down");
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+    if (!asleep) {
+        const auto labels = mappedInput.mapLabels("Back", "Toggle", "Up", "Down");
+        GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+    }
     renderer.displayBuffer(); 
+}
+}
+
+void ToDoActivity::render() const {
+    renderCustom(false);
 }

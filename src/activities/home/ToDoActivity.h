@@ -36,10 +36,12 @@ private:
     void loadTasks();
     void saveTasks();
     void toggleTask(int index);
-    void render() const; // Note the 'const' to match GUI calls
+    
+    void render() const;
     void rebuildVisibleTasks();   
 
     public:
+    void renderCustom(bool asleep = false) const;
     ToDoActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::function<void()> onBack);
     void onEnter() override;
     void onExit() override;
