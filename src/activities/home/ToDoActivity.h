@@ -33,7 +33,7 @@ private:
     static void taskTrampoline(void* param);
     void displayTaskLoop();
     
-    void loadTasks();
+    
     void saveTasks();
     void toggleTask(int index);
     
@@ -41,6 +41,7 @@ private:
     void rebuildVisibleTasks();   
 
     public:
+    void loadTasks();
     void renderCustom(bool asleep = false) const;
     ToDoActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::function<void()> onBack);
     void onEnter() override;

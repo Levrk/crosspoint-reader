@@ -13,6 +13,7 @@
 #include "fontIds.h"
 #include "images/Logo120.h"
 #include "util/StringUtils.h"
+#include "activities/home/ToDoActivity.h"
 
 void SleepActivity::onEnter() {
   Activity::onEnter();
@@ -21,6 +22,8 @@ void SleepActivity::onEnter() {
   switch (SETTINGS.sleepScreen) {
     case (CrossPointSettings::SLEEP_SCREEN_MODE::BLANK):
       return renderBlankSleepScreen();
+    case (CrossPointSettings::SLEEP_SCREEN_MODE::TODO):
+      return renderToDoSleepScreen();
     case (CrossPointSettings::SLEEP_SCREEN_MODE::CUSTOM):
       return renderCustomSleepScreen();
     case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER):
@@ -29,6 +32,24 @@ void SleepActivity::onEnter() {
     default:
       return renderDefaultSleepScreen();
   }
+}
+
+void SleepActivity::renderToDoSleepScreen() const {
+  // We create a temporary instance of ToDoActivity just for rendering.
+  // We pass a dummy lambda for onBack because no input is processed in sleep.
+  ToDoActivity todo(const_cast<GfxRenderer&>(renderer), 
+                    const_cast<MappedInputManager&>(mappedInput), 
+                    []() {});
+
+  // Manually trigger the task loading since we aren't calling onEnter()
+  // which normally handles this in the Activity lifecycle.
+  todo.loadTasks();
+
+  // Render with asleep = true to hide button hints and other UI artifacts
+  todo.renderCustom(true);
+  
+  // Note: ToDoActivity::renderCustom calls renderer.displayBuffer() internally,
+  // so the e-ink update is already handled.
 }
 
 void SleepActivity::renderCustomSleepScreen() const {
