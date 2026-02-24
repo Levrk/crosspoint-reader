@@ -229,7 +229,7 @@ void HomeActivity::render(Activity::RenderLock&&) {
   // Build menu items dynamically
   std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_FILE_TRANSFER), "To Do",
                                         tr(STR_SETTINGS_TITLE)};
-  std::vector<UIIcon> menuIcons = {Folder, Transfer, Folder, Settings};
+  std::vector<UIIcon> menuIcons = {Folder, Transfer, Check, Settings};
 
   if (hasOpdsUrl) {
     // Insert OPDS Browser after My Library

@@ -23,6 +23,11 @@
 #include "components/icons/settings2.h"
 #include "components/icons/text24.h"
 #include "components/icons/transfer.h"
+#include "components/icons/check.h"
+#include "components/icons/check24.h"
+#include "components/icons/uncheck.h"
+#include "components/icons/open.h"
+#include "components/icons/closed.h"
 #include "components/icons/wifi.h"
 #include "fontIds.h"
 
@@ -54,13 +59,24 @@ const uint8_t* iconForName(UIIcon icon, int size) {
         return Book24Icon;
       case UIIcon::File:
         return File24Icon;
+      case UIIcon::Uncheck:
+        return UncheckIcon;
+      case UIIcon::Closed:
+        return ClosedIcon;
+      case UIIcon::Open:
+        return OpenIcon;
+      case UIIcon::Check24:
+        return Check24Icon;
       default:
         return nullptr;
     }
   } else if (size == 32) {
     switch (icon) {
+      
       case UIIcon::Folder:
         return FolderIcon;
+      case UIIcon::Check:
+        return CheckIcon;
       case UIIcon::Book:
         return BookIcon;
       case UIIcon::Recent:
@@ -277,23 +293,55 @@ void LyraTheme::drawList(const GfxRenderer& renderer, Rect rect, int itemCount, 
                              Color::LightGray);
   }
 
-  int textX = rect.x + LyraMetrics::values.contentSidePadding + hPaddingInSelection;
+  int baseTextX = rect.x + LyraMetrics::values.contentSidePadding + hPaddingInSelection;
   int textWidth = contentWidth - LyraMetrics::values.contentSidePadding * 2 - hPaddingInSelection * 2;
-  int iconSize;
+  int iconSize = 0;
+  
   if (rowIcon != nullptr) {
     iconSize = (rowSubtitle != nullptr) ? mainMenuIconSize : listIconSize;
-    textX += iconSize + hPaddingInSelection;
+    baseTextX += iconSize + hPaddingInSelection;
     textWidth -= iconSize + hPaddingInSelection;
   }
 
   // Draw all items
   const auto pageStartIndex = selectedIndex / pageItems * pageItems;
-  int iconY = (rowSubtitle != nullptr) ? 16 : 10;
+  
   for (int i = pageStartIndex; i < itemCount && i < pageStartIndex + pageItems; i++) {
     const int itemY = rect.y + (i % pageItems) * rowHeight;
-    int rowTextWidth = textWidth;
+    std::string rawItemName = rowTitle(i);
 
-    // Draw name
+    // --- CONDITIONAL SEPARATOR LINE (ABOVE ITEM) ---
+    bool shouldDrawLine = false;
+    if (i > 0) {
+      if (!rawItemName.empty() && rawItemName[0] != '\t') {
+        shouldDrawLine = true;
+      }
+    }
+
+    if (shouldDrawLine) {
+      renderer.drawLine(rect.x + LyraMetrics::values.contentSidePadding, 
+                        itemY, 
+                        rect.x + contentWidth - LyraMetrics::values.contentSidePadding, 
+                        itemY, 
+                        1, true);
+    }
+
+    // --- CALCULATE INDENT ---
+    int indent = 0;
+    std::string displayTitle = rawItemName;
+    
+    // Check for tab or space to indent sub-tasks
+    if (!displayTitle.empty() && (displayTitle[0] == '\t')) {
+        indent = 32; // Width of the indent in pixels
+        displayTitle.erase(0, 1); // Strip the tab/space so it doesn't render as a weird character
+    }
+
+    // Apply the indent to our X coordinates and available width
+    int currentIconX = rect.x + LyraMetrics::values.contentSidePadding + hPaddingInSelection + indent;
+    int currentTextX = baseTextX + indent;
+    int rowTextWidth = textWidth - indent;
+
+    // --- DRAW VALUE CALCULATION ---
     int valueWidth = 0;
     std::string valueText = "";
     if (rowValue != nullptr) {
@@ -303,27 +351,43 @@ void LyraTheme::drawList(const GfxRenderer& renderer, Rect rect, int itemCount, 
       rowTextWidth -= valueWidth;
     }
 
-    auto itemName = rowTitle(i);
-    auto item = renderer.truncatedText(UI_10_FONT_ID, itemName.c_str(), rowTextWidth);
-    renderer.drawText(UI_10_FONT_ID, textX, itemY + 7, item.c_str(), true);
+    // --- DYNAMIC Y ALIGNMENT ---
+    int titleY, iconY, valueY;
 
+    if (rowSubtitle == nullptr) {
+      // Single line item: Center perfectly within rowHeight
+      int textHeight = renderer.getLineHeight(UI_10_FONT_ID);
+      titleY = itemY + (rowHeight - textHeight) / 2;
+      valueY = itemY + (rowHeight - textHeight) / 2;
+      iconY = itemY + (rowHeight - iconSize) / 2;
+    } else {
+      // Item with subtitle: Keep the original stacked spacing
+      titleY = itemY + 7;
+      valueY = itemY + 6;
+      iconY = itemY + 16;
+    }
+
+    // --- DRAW TITLE ---
+    auto item = renderer.truncatedText(UI_10_FONT_ID, displayTitle.c_str(), rowTextWidth);
+    renderer.drawText(UI_10_FONT_ID, currentTextX, titleY, item.c_str(), true);
+
+    // --- DRAW ICON ---
     if (rowIcon != nullptr) {
       UIIcon icon = rowIcon(i);
       const uint8_t* iconBitmap = iconForName(icon, iconSize);
       if (iconBitmap != nullptr) {
-        renderer.drawIcon(iconBitmap, rect.x + LyraMetrics::values.contentSidePadding + hPaddingInSelection,
-                          itemY + iconY, iconSize, iconSize);
+        renderer.drawIcon(iconBitmap, currentIconX, iconY, iconSize, iconSize);
       }
     }
 
+    // --- DRAW SUBTITLE ---
     if (rowSubtitle != nullptr) {
-      // Draw subtitle
       std::string subtitleText = rowSubtitle(i);
       auto subtitle = renderer.truncatedText(SMALL_FONT_ID, subtitleText.c_str(), rowTextWidth);
-      renderer.drawText(SMALL_FONT_ID, textX, itemY + 30, subtitle.c_str(), true);
+      renderer.drawText(SMALL_FONT_ID, currentTextX, itemY + 30, subtitle.c_str(), true);
     }
 
-    // Draw value
+    // --- DRAW VALUE ---
     if (!valueText.empty()) {
       if (i == selectedIndex && highlightValue) {
         renderer.fillRoundedRect(
@@ -332,7 +396,7 @@ void LyraTheme::drawList(const GfxRenderer& renderer, Rect rect, int itemCount, 
       }
 
       renderer.drawText(UI_10_FONT_ID, rect.x + contentWidth - LyraMetrics::values.contentSidePadding - valueWidth,
-                        itemY + 6, valueText.c_str(), !(i == selectedIndex && highlightValue));
+                        valueY, valueText.c_str(), !(i == selectedIndex && highlightValue));
     }
   }
 }
