@@ -257,18 +257,93 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
               if (decoder && decoder->getDimensions(cachedImagePath, dims)) {
                 LOG_DBG("EHP", "Image dimensions: %dx%d", dims.width, dims.height);
 
-                // Scale to fit viewport while maintaining aspect ratio
-                int maxWidth = self->viewportWidth;
-                int maxHeight = self->viewportHeight;
-                float scaleX = (dims.width > maxWidth) ? (float)maxWidth / dims.width : 1.0f;
-                float scaleY = (dims.height > maxHeight) ? (float)maxHeight / dims.height : 1.0f;
-                float scale = (scaleX < scaleY) ? scaleX : scaleY;
-                if (scale > 1.0f) scale = 1.0f;
+                int displayWidth = 0;
+                int displayHeight = 0;
+                const float emSize =
+                    static_cast<float>(self->renderer.getLineHeight(self->fontId)) * self->lineCompression;
+                CssStyle imgStyle = self->cssParser ? self->cssParser->resolveStyle("img", classAttr) : CssStyle{};
+                // Merge inline style (e.g. style="height: 2em") so it overrides stylesheet rules
+                if (!styleAttr.empty()) {
+                  imgStyle.applyOver(CssParser::parseInlineStyle(styleAttr));
+                }
+                const bool hasCssHeight = imgStyle.hasImageHeight();
+                const bool hasCssWidth = imgStyle.hasImageWidth();
 
-                int displayWidth = (int)(dims.width * scale);
-                int displayHeight = (int)(dims.height * scale);
+                if (hasCssHeight && hasCssWidth && dims.width > 0 && dims.height > 0) {
+                  // Both CSS height and width set: resolve both, then clamp to viewport preserving requested ratio
+                  displayHeight = static_cast<int>(
+                      imgStyle.imageHeight.toPixels(emSize, static_cast<float>(self->viewportHeight)) + 0.5f);
+                  displayWidth = static_cast<int>(
+                      imgStyle.imageWidth.toPixels(emSize, static_cast<float>(self->viewportWidth)) + 0.5f);
+                  if (displayHeight < 1) displayHeight = 1;
+                  if (displayWidth < 1) displayWidth = 1;
+                  if (displayWidth > self->viewportWidth || displayHeight > self->viewportHeight) {
+                    float scaleX = (displayWidth > self->viewportWidth)
+                                       ? static_cast<float>(self->viewportWidth) / displayWidth
+                                       : 1.0f;
+                    float scaleY = (displayHeight > self->viewportHeight)
+                                       ? static_cast<float>(self->viewportHeight) / displayHeight
+                                       : 1.0f;
+                    float scale = (scaleX < scaleY) ? scaleX : scaleY;
+                    displayWidth = static_cast<int>(displayWidth * scale + 0.5f);
+                    displayHeight = static_cast<int>(displayHeight * scale + 0.5f);
+                    if (displayWidth < 1) displayWidth = 1;
+                    if (displayHeight < 1) displayHeight = 1;
+                  }
+                  LOG_DBG("EHP", "Display size from CSS height+width: %dx%d", displayWidth, displayHeight);
+                } else if (hasCssHeight && !hasCssWidth && dims.width > 0 && dims.height > 0) {
+                  // Use CSS height (resolve % against viewport height) and derive width from aspect ratio
+                  displayHeight = static_cast<int>(
+                      imgStyle.imageHeight.toPixels(emSize, static_cast<float>(self->viewportHeight)) + 0.5f);
+                  if (displayHeight < 1) displayHeight = 1;
+                  displayWidth =
+                      static_cast<int>(displayHeight * (static_cast<float>(dims.width) / dims.height) + 0.5f);
+                  if (displayHeight > self->viewportHeight) {
+                    displayHeight = self->viewportHeight;
+                    // Rescale width to preserve aspect ratio when height is clamped
+                    displayWidth =
+                        static_cast<int>(displayHeight * (static_cast<float>(dims.width) / dims.height) + 0.5f);
+                    if (displayWidth < 1) displayWidth = 1;
+                  }
+                  if (displayWidth > self->viewportWidth) {
+                    displayWidth = self->viewportWidth;
+                    // Rescale height to preserve aspect ratio when width is clamped
+                    displayHeight =
+                        static_cast<int>(displayWidth * (static_cast<float>(dims.height) / dims.width) + 0.5f);
+                    if (displayHeight < 1) displayHeight = 1;
+                  }
+                  if (displayWidth < 1) displayWidth = 1;
+                  LOG_DBG("EHP", "Display size from CSS height: %dx%d", displayWidth, displayHeight);
+                } else if (hasCssWidth && !hasCssHeight && dims.width > 0 && dims.height > 0) {
+                  // Use CSS width (resolve % against viewport width) and derive height from aspect ratio
+                  displayWidth = static_cast<int>(
+                      imgStyle.imageWidth.toPixels(emSize, static_cast<float>(self->viewportWidth)) + 0.5f);
+                  if (displayWidth > self->viewportWidth) displayWidth = self->viewportWidth;
+                  if (displayWidth < 1) displayWidth = 1;
+                  displayHeight =
+                      static_cast<int>(displayWidth * (static_cast<float>(dims.height) / dims.width) + 0.5f);
+                  if (displayHeight > self->viewportHeight) {
+                    displayHeight = self->viewportHeight;
+                    // Rescale width to preserve aspect ratio when height is clamped
+                    displayWidth =
+                        static_cast<int>(displayHeight * (static_cast<float>(dims.width) / dims.height) + 0.5f);
+                    if (displayWidth < 1) displayWidth = 1;
+                  }
+                  if (displayHeight < 1) displayHeight = 1;
+                  LOG_DBG("EHP", "Display size from CSS width: %dx%d", displayWidth, displayHeight);
+                } else {
+                  // Scale to fit viewport while maintaining aspect ratio
+                  int maxWidth = self->viewportWidth;
+                  int maxHeight = self->viewportHeight;
+                  float scaleX = (dims.width > maxWidth) ? (float)maxWidth / dims.width : 1.0f;
+                  float scaleY = (dims.height > maxHeight) ? (float)maxHeight / dims.height : 1.0f;
+                  float scale = (scaleX < scaleY) ? scaleX : scaleY;
+                  if (scale > 1.0f) scale = 1.0f;
 
-                LOG_DBG("EHP", "Display size: %dx%d (scale %.2f)", displayWidth, displayHeight, scale);
+                  displayWidth = (int)(dims.width * scale);
+                  displayHeight = (int)(dims.height * scale);
+                  LOG_DBG("EHP", "Display size: %dx%d (scale %.2f)", displayWidth, displayHeight, scale);
+                }
 
                 // Create page for image - only break if image won't fit remaining space
                 if (self->currentPage && !self->currentPage->elements.empty() &&
@@ -519,25 +594,57 @@ void XMLCALL ChapterHtmlSlimParser::characterData(void* userData, const XML_Char
       continue;
     }
 
-    // Detect U+00A0 (non-breaking space): UTF-8 encoding is 0xC2 0xA0
-    // Render a visible space without allowing a line break around it.
+    // Detect U+00A0 (non-breaking space, UTF-8: 0xC2 0xA0) or
+    //        U+202F (narrow no-break space, UTF-8: 0xE2 0x80 0xAF).
+    //
+    // Both are rendered as a visible space but must never allow a line break around them.
+    // We split the no-break space into its own word token and link the surrounding words
+    // with continuation flags so the layout engine treats them as an indivisible group.
+    //
+    // Example: "200&#xA0;Quadratkilometer" or "200&#x202F;Quadratkilometer"
+    //   Input bytes:  "200\xC2\xA0Quadratkilometer"  (or 0xE2 0x80 0xAF for U+202F)
+    //   Tokens produced:
+    //     [0] "200"               continues=false
+    //     [1] " "                 continues=true   (attaches to "200", no gap)
+    //     [2] "Quadratkilometer"  continues=true   (attaches to " ", no gap)
+    //
+    //   The continuation flags prevent the line-breaker from inserting a line break
+    //   between "200" and "Quadratkilometer". However, "Quadratkilometer" is now a
+    //   standalone word for hyphenation purposes, so Liang patterns can produce
+    //   "200 Quadrat-" / "kilometer" instead of the unusable "200" / "Quadratkilometer".
     if (static_cast<uint8_t>(s[i]) == 0xC2 && i + 1 < len && static_cast<uint8_t>(s[i + 1]) == 0xA0) {
-      // Flush any pending text so style is applied correctly.
       if (self->partWordBufferIndex > 0) {
         self->flushPartWordBuffer();
       }
 
-      // Add a standalone space that attaches to the previous word.
       self->partWordBuffer[0] = ' ';
       self->partWordBuffer[1] = '\0';
       self->partWordBufferIndex = 1;
       self->nextWordContinues = true;  // Attach space to previous word (no break).
       self->flushPartWordBuffer();
 
-      // Ensure the next real word attaches to this space (no break).
-      self->nextWordContinues = true;
+      self->nextWordContinues = true;  // Next real word attaches to this space (no break).
 
       i++;  // Skip the second byte (0xA0)
+      continue;
+    }
+
+    // U+202F (narrow no-break space) — identical logic to U+00A0 above.
+    if (static_cast<uint8_t>(s[i]) == 0xE2 && i + 2 < len && static_cast<uint8_t>(s[i + 1]) == 0x80 &&
+        static_cast<uint8_t>(s[i + 2]) == 0xAF) {
+      if (self->partWordBufferIndex > 0) {
+        self->flushPartWordBuffer();
+      }
+
+      self->partWordBuffer[0] = ' ';
+      self->partWordBuffer[1] = '\0';
+      self->partWordBufferIndex = 1;
+      self->nextWordContinues = true;
+      self->flushPartWordBuffer();
+
+      self->nextWordContinues = true;
+
+      i += 2;  // Skip the remaining two bytes (0x80 0xAF)
       continue;
     }
 
@@ -682,6 +789,20 @@ void XMLCALL ChapterHtmlSlimParser::endElement(void* userData, const XML_Char* n
   if (headerOrBlockTag) {
     self->currentCssStyle.reset();
     self->updateEffectiveInlineStyle();
+
+    // Reset alignment on empty text blocks to prevent stale alignment from bleeding
+    // into the next sibling element. This fixes issue #1026 where an empty <h1> (default
+    // Center) followed by an image-only <p> causes Center to persist through the chain
+    // of empty block reuse into subsequent text paragraphs.
+    // Margins/padding are preserved so parent element spacing still accumulates correctly.
+    if (self->currentTextBlock && self->currentTextBlock->isEmpty()) {
+      auto style = self->currentTextBlock->getBlockStyle();
+      style.textAlignDefined = false;
+      style.alignment = (self->paragraphAlignment == static_cast<uint8_t>(CssTextAlign::None))
+                            ? CssTextAlign::Justify
+                            : static_cast<CssTextAlign>(self->paragraphAlignment);
+      self->currentTextBlock->setBlockStyle(style);
+    }
   }
 }
 

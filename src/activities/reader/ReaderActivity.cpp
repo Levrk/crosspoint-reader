@@ -9,6 +9,7 @@
 #include "TxtReaderActivity.h"
 #include "Xtc.h"
 #include "XtcReaderActivity.h"
+#include "activities/util/BmpViewerActivity.h"
 #include "activities/util/FullScreenMessageActivity.h"
 #include "util/StringUtils.h"
 #include "activities/util/BmpViewerActivity.h"
