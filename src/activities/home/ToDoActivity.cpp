@@ -25,7 +25,7 @@ void ToDoActivity::onExit() {
 
 void ToDoActivity::loadTasks() {
     allTasks.clear();
-    auto file = Storage.open("/todo.txt", O_WRONLY | O_CREAT | O_TRUNC);
+    auto file = Storage.open("/todo.txt", O_RDONLY);
     if (file) {
         std::string line;
         while (file.available()) {
